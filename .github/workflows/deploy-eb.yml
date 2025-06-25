@@ -1,0 +1,47 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clean publish directory
+        run: rm -rf publish
+        
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: "8.0.x" # או 7.0.x אם תרצה
+
+      - name: Restore dependencies
+        run: dotnet restore ShoppingApi.csproj
+
+      - name: Publish project
+        run: dotnet publish ShoppingApi.csproj -c Release -o ./publish
+
+      - name: List published files
+        run: ls -la ./publish
+
+      - name: Zip published files
+        run: |
+          cd publish
+          zip -r ../deploy.zip .
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v20
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ShoppingApi
+          environment_name: shoppingapi-single-env
+          region: eu-central-1
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
